@@ -1,0 +1,28 @@
+./Programa de Calculadora Simple
+
+ fn calculadora {
+        val x = int;
+        val y = int;
+        val opcao = string;
+        val soma = int;
+
+       print"Digiter o x";
+       out x;
+       print"Digiter o y ";
+       out y;
+       print"Digiter + - * / ";
+       out opcao;
+
+        if opcao  == "+"
+           soma = x + y;
+        elif opcao == "-"
+           soma = x - y;
+        elif opcao == "*"
+             soma = x * y;
+        elif opcao == "/"
+            if y != 0
+            print"Erro divisão por zero";
+             soma = x / y;
+
+        print"A soma é "   soma;
+};

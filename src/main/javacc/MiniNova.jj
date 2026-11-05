@@ -1,0 +1,126 @@
+options {
+  STATIC = false;
+}
+
+PARSER_BEGIN(MiniNova)
+import java.io.FileInputStream;
+
+public class MiniNova {
+  public static void main(String[] args) throws Exception {
+    if (args.length != 1) {
+      System.err.println("Uso: java MiniNova arquivo.mn");
+      System.exit(1);
+    }
+    try {
+      FileInputStream in = new FileInputStream(args[0]);
+      MiniNova parser = new MiniNova(in);
+      parser.programa();
+      in.close();
+      System.out.println("OK: " + args[0] + " aceito.");
+    } catch (ParseException e) {
+      System.out.println("ERRO SINTATICO: " + e.getMessage());
+      System.exit(2);
+    } catch (Throwable e) {
+      System.out.println("ERRO LEXICO: " + e.getMessage());
+      System.exit(3);
+    }
+  }
+}
+PARSER_END(MiniNova)
+
+/* ---------- Descarte: espacos e comentarios (./ ate o fim da linha) ---------- */
+SKIP : {
+  " " | "\t" | "\r" | "\n"
+| <COMENTARIO: "./" (~["\n", "\r"])*>
+}
+
+/* ---------- Palavras reservadas (antes de ID) ---------- */
+TOKEN : {
+  <KW_VAL: "val"> | <KW_FN: "fn"> | <KW_PRINT: "print"> | <KW_OUT: "out">
+| <KW_IF: "if"> | <KW_ELIF: "elif"> | <KW_ELSE: "else">
+| <KW_FOR: "for"> | <KW_WHILE: "while">
+| <KW_AND: "and"> | <KW_OR: "or">
+| <T_INT: "int"> | <T_FLOAT: "float"> | <T_STRING: "string"> | <T_BOOL: "bool">
+| <KW_TRUE: "true"> | <KW_FALSE: "false"> | <KW_NONE: "None">
+}
+
+/* ---------- Operadores e simbolos ---------- */
+TOKEN : {
+  <POT: "**"> | <MAIS: "+"> | <MENOS: "-"> | <MULT: "*"> | <DIV: "/"> | <MOD: "%">
+| <IGUAL: "=="> | <DIF: "!="> | <MENORIG: "<="> | <MAIORIG: ">="> | <MENOR: "<"> | <MAIOR: ">">
+| <ATRIB: "=">  | <PV: ";"> | <ACH: "{"> | <FCH: "}">
+}
+
+/* ---------- Literais e identificadores ---------- */
+TOKEN : {
+  <NUM_INT: (["0"-"9"])+>
+| <NUM_FLOAT: (["0"-"9"])+ "." (["0"-"9"])+>
+| <STRING_LIT: "\"" (~["\"", "\n", "\r"])* "\"">
+| <ID: ["a"-"z", "A"-"Z", "_"] (["a"-"z", "A"-"Z", "0"-"9", "_"])*>
+}
+
+/* ---------- Gramatica ---------- */
+void programa() : {} { ( declaracao() | funcao() )* <EOF> }
+
+void funcao() : {} { <KW_FN> <ID> [ listaParametros() ] bloco() }
+
+void listaParametros() : {} { <ID> ( <ID> )* }
+
+void bloco() : {} { <ACH> ( comando() )* <FCH> }
+
+void comando() : {} {
+  declaracao()
+| LOOKAHEAD(2) atribuicao()
+| chamada()
+| leitura()
+| escrita()
+| condicional()
+| enquanto()
+| para()
+}
+
+/* Aceita tanto "val x int;" quanto "val x = int;" */
+void declaracao() : {} {
+  <KW_VAL> <ID> [ <ATRIB> ] tipo() [ <ATRIB> expressao() ] <PV>
+}
+
+void tipo() : {} { <T_INT> | <T_FLOAT> | <T_STRING> | <T_BOOL> }
+
+void atribuicao() : {} { atribSemPV() <PV> }
+void atribSemPV() : {} { <ID> <ATRIB> expressao() }
+
+void chamada() : {} { <ID> [ listaArgumentos() ] <PV> }
+void listaArgumentos() : {} { expressao() ( expressao() )* }
+
+void leitura() : {} { <KW_OUT> <ID> <PV> }
+
+void escrita() : {} { <KW_PRINT> expressao() ( expressao() )* <PV> }
+
+void condicional() : {} {
+  <KW_IF> expressao() bloco()
+  ( <KW_ELIF> expressao() bloco() )*
+  [ <KW_ELSE> bloco() ]
+}
+
+void enquanto() : {} { <KW_WHILE> expressao() bloco() }
+
+void para() : {} {
+  <KW_FOR> <ID> expressao() bloco()
+}
+
+/* ---------- Expressoes ---------- */
+void expressao() : {} { ou() }
+void ou() : {} { e() ( <KW_OR> e() )* }
+void e() : {} { relacional() ( <KW_AND> relacional() )* }
+void relacional() : {} { aditiva() [ opRel() aditiva() ] }
+void opRel() : {} { <IGUAL> | <DIF> | <MENORIG> | <MAIORIG> | <MENOR> | <MAIOR> }
+void aditiva() : {} { mult() ( ( <MAIS> | <MENOS> ) mult() )* }
+void mult() : {} { unario() ( ( <MULT> | <DIV> | <MOD> ) unario() )* }
+void unario() : {} { <MENOS> unario() | potencia() }
+void potencia() : {} { fator() [ <POT> unario() ] }
+void fator() : {} {
+  <NUM_INT> | <NUM_FLOAT> | <STRING_LIT>
+| <KW_TRUE> | <KW_FALSE> | <KW_NONE>
+| <ID>
+| "(" expressao() ")"
+}
