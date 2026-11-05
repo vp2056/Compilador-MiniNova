@@ -63,7 +63,6 @@ fator ::= NUM_INT | NUM_FLOAT | STRING_LIT | "true" | "false" | "None" | ID | "(
 ```
 ## 4. Compilação e execução
 ``` 
-
 Requisitos: JDK 8+ 
 
 Windows:
