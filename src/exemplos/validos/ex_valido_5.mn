@@ -1,7 +1,12 @@
-./ Exemplo de uso do comando for em MiniNova
-fn teste5 {
-val int i = 3;
-for i 10 {
-  print i;
-}
+fn tabuada {
+       val int n = 3;
+       val int i = 2;
+       val int resultado;
+
+
+       for i 3{
+            resultado = n * i;
+            print n, "x", i, "=", resultado;
+
+       }
 }
