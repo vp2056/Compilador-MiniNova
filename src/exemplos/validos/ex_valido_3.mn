@@ -1,6 +1,11 @@
-val idade = 18;
+./ Este e um comentario de linha
+fn teste3 {
+val idade;
+print "Digite a idade";
+out idade;
 if idade >= 18 {
   print "Maior de idade";
 } else {
   print "Menor de idade";
+}
 }

@@ -1,4 +1,7 @@
-fn somar a b {
-  print a + b;
+./ Exemplo de uso do comando for em MiniNova
+fn teste5 {
+val int i = 3;
+for i 10 {
+  print i;
 }
-somar 10 20;
+}

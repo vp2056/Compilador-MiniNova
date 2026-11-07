@@ -1,2 +1,4 @@
+fn teste {
 val int x = 10;
 print x;
+}

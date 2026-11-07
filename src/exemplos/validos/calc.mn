@@ -1,8 +1,8 @@
-./Programa de Calculadora Simple
+./ Programa de Calculadora Simples Corrigido
 
 fn calculadora {
        val int x;
-       val int y; 
+       val int y;
        val string opcao;
        val int soma = 0;
 
@@ -17,14 +17,18 @@ fn calculadora {
           soma = x + y;
        }
        elif opcao == "-" {
-          soma = x - y; 
+          soma = x - y;
        }
        elif opcao == "*" {
           soma = x * y;
        }
        elif opcao == "/" {
-           soma = x / y;
+            if y != 0 {
+               soma = x / y;
+            } else {
+               print "Erro divisao por zero";
+            }
        }
 
-       print "A operacao resulta em", soma;
+       print "A soma é", soma;
 }
