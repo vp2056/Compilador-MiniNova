@@ -12,10 +12,13 @@ import java.util.Scanner;
 
 public class MiniNova {
 
-  // Variáveis globais para armazenamento (suporta INT, Float, String, Boolean)
+  // Variáveis globais para armazenamento (suporta INT, String, Boolean)
   public static Object resultado = 0.0;
   public static Map<String, Object> memoria = new HashMap<String, Object>();
   public static Scanner scanner = new Scanner(System.in);
+
+  // Flag de controle para condicionais (evita executar blocos falsos)
+  public static boolean executing = true;
 
   // Auxiliares para conversão numérica segura
   private static double toDouble(Object o) {
@@ -141,13 +144,19 @@ void comando() : {} {
 
 /* Flexível para aceitar: val int x; ou val x int; ou val x; */
 void declaracao() : { Token id; Object val = 0.0; } {
-  <KW_VAL> 
-  ( 
-    LOOKAHEAD(2) tipo() id=<ID> 
-  | 
-    id=<ID> [ tipo() ] 
+  <KW_VAL>
+  (
+    LOOKAHEAD(2) tipo() id=<ID>
+  |
+    id=<ID> [ tipo() ]
   )
-  [ <ATRIB> val=expressao() { memoria.put(id.image, val); resultado = val; } ]
+  [ <ATRIB> val=expressao() {
+      if (executing) {
+        memoria.put(id.image, val);
+        resultado = val;
+      }
+    }
+  ]
   <PV>
 }
 
@@ -155,49 +164,91 @@ void tipo() : {} { <T_INT> | <T_FLOAT> | <T_STRING> | <T_BOOL> }
 
 void atribuicao() : {} { atribSemPV() <PV> }
 
-void atribSemPV() : { Token id; Object val; } { 
-  id=<ID> <ATRIB> val=expressao() { 
-    memoria.put(id.image, val); 
-    resultado = val; 
-  } 
+void atribSemPV() : { Token id; Object val; } {
+  id=<ID> <ATRIB> val=expressao() {
+    if (executing) {
+      memoria.put(id.image, val);
+      resultado = val;
+    }
+  }
 }
 
 void chamada() : {} { <ID> [ listaArgumentos() ] <PV> }
 void listaArgumentos() : {} { expressao() ( expressao() )* }
 
 /* Lê do console (Scanner) e atribui à variável */
-void leitura() : { Token id; } { 
+void leitura() : { Token id; } {
   <KW_OUT> id=<ID> <PV> {
-    if (scanner.hasNextDouble()) {
-      double d = scanner.nextDouble();
-      memoria.put(id.image, d);
-      resultado = d;
-    } else {
-      String s = scanner.next();
-      memoria.put(id.image, s);
-      resultado = s;
+    if (executing) {
+      if (scanner.hasNextDouble()) {
+        double d = scanner.nextDouble();
+        memoria.put(id.image, d);
+        resultado = d;
+      } else {
+        String s = scanner.next();
+        memoria.put(id.image, s);
+        resultado = s;
+      }
     }
-  } 
+  }
 }
 
 /* Imprime múltiplos valores separados por vírgula, com espaço automático */
-void escrita() : { Object val; StringBuilder sb = new StringBuilder(); } { 
-  <KW_PRINT> val=expressao() { 
-    sb.append(formatVal(val)); 
-    resultado = val; 
-  } 
-  ( <VIRGULA> val=expressao() { 
-    sb.append(" ").append(formatVal(val)); 
-    resultado = val; 
-  } )* 
-  { System.out.println(sb.toString()); }
-  <PV> 
+void escrita() : { Object val; StringBuilder sb = new StringBuilder(); } {
+  <KW_PRINT> val=expressao() {
+    if (executing) {
+      sb.append(formatVal(val));
+      resultado = val;
+    }
+  }
+  ( <VIRGULA> val=expressao() {
+    if (executing) {
+      sb.append(" ").append(formatVal(val));
+      resultado = val;
+    }
+  } )*
+  {
+    if (executing) {
+      System.out.println(sb.toString());
+    }
+  }
+  <PV>
 }
 
-void condicional() : {} {
-  <KW_IF> expressao() bloco()
-  ( <KW_ELIF> expressao() bloco() )*
-  [ <KW_ELSE> bloco() ]
+void condicional() : {
+  Object cond;
+  boolean parentExec = executing;
+  boolean branchTaken = false;
+} {
+  <KW_IF> cond=expressao()
+  {
+    branchTaken = (toDouble(cond) != 0);
+    executing = parentExec && branchTaken;
+  }
+  bloco()
+  (
+    LOOKAHEAD(2)
+    <KW_ELIF> cond=expressao()
+    {
+      if (!branchTaken && toDouble(cond) != 0) {
+        branchTaken = true;
+        executing = parentExec;
+      } else {
+        executing = false;
+      }
+    }
+    bloco()
+  )*
+  [
+    <KW_ELSE>
+    {
+      executing = parentExec && !branchTaken;
+    }
+    bloco()
+  ]
+  {
+    executing = parentExec;
+  }
 }
 
 void enquanto() : {} { <KW_WHILE> expressao() bloco() }
@@ -209,91 +260,99 @@ void para() : {} {
 /* ---------- Expressoes com Retorno de Object (Suporte a String e Número) ---------- */
 Object expressao() : { Object r; } { r=ou() { return r; } }
 
-Object ou() : { Object r, v; } { 
-  r=e() ( LOOKAHEAD(2) <KW_OR> v=e() { 
-    boolean b1 = toDouble(r) != 0; 
-    boolean b2 = toDouble(v) != 0; 
-    r = (b1 || b2 ? 1.0 : 0.0); 
-  } )* 
-  { return r; } 
+Object ou() : { Object r, v; } {
+  r=e() ( LOOKAHEAD(2) <KW_OR> v=e() {
+    boolean b1 = toDouble(r) != 0;
+    boolean b2 = toDouble(v) != 0;
+    r = (b1 || b2 ? 1.0 : 0.0);
+  } )*
+  { return r; }
 }
 
-Object e() : { Object r, v; } { 
-  r=relacional() ( LOOKAHEAD(2) <KW_AND> v=relacional() { 
-    boolean b1 = toDouble(r) != 0; 
-    boolean b2 = toDouble(v) != 0; 
-    r = (b1 && b2 ? 1.0 : 0.0); 
-  } )* 
-  { return r; } 
+Object e() : { Object r, v; } {
+  r=relacional() ( LOOKAHEAD(2) <KW_AND> v=relacional() {
+    boolean b1 = toDouble(r) != 0;
+    boolean b2 = toDouble(v) != 0;
+    r = (b1 && b2 ? 1.0 : 0.0);
+  } )*
+  { return r; }
 }
 
-Object relacional() : { Object r, v = 0.0; Token op = null; } { 
-  r=aditiva() [ op=opRel() v=aditiva() { 
-    double d1 = toDouble(r);
-    double d2 = toDouble(v);
-    if (op.image.equals("==")) r = (d1 == d2 ? 1.0 : 0.0);
-    else if (op.image.equals("!=")) r = (d1 != d2 ? 1.0 : 0.0);
-    else if (op.image.equals("<")) r = (d1 < d2 ? 1.0 : 0.0);
-    else if (op.image.equals("<=")) r = (d1 <= d2 ? 1.0 : 0.0);
-    else if (op.image.equals(">")) r = (d1 > d2 ? 1.0 : 0.0);
-    else if (op.image.equals(">=")) r = (d1 >= d2 ? 1.0 : 0.0);
-  } ] 
-  { return r; } 
+Object relacional() : { Object r, v = 0.0; Token op = null; } {
+  r=aditiva() [ op=opRel() v=aditiva() {
+    if (r instanceof String || v instanceof String) {
+      String s1 = String.valueOf(r);
+      String s2 = String.valueOf(v);
+      if (op.image.equals("==")) r = (s1.equals(s2) ? 1.0 : 0.0);
+      else if (op.image.equals("!=")) r = (!s1.equals(s2) ? 1.0 : 0.0);
+      else r = 0.0;
+    } else {
+      double d1 = toDouble(r);
+      double d2 = toDouble(v);
+      if (op.image.equals("==")) r = (d1 == d2 ? 1.0 : 0.0);
+      else if (op.image.equals("!=")) r = (d1 != d2 ? 1.0 : 0.0);
+      else if (op.image.equals("<")) r = (d1 < d2 ? 1.0 : 0.0);
+      else if (op.image.equals("<=")) r = (d1 <= d2 ? 1.0 : 0.0);
+      else if (op.image.equals(">")) r = (d1 > d2 ? 1.0 : 0.0);
+      else if (op.image.equals(">=")) r = (d1 >= d2 ? 1.0 : 0.0);
+    }
+  } ]
+  { return r; }
 }
 
-Token opRel() : { Token t; } { 
-  ( t=<IGUAL> | t=<DIF> | t=<MENORIG> | t=<MAIORIG> | t=<MENOR> | t=<MAIOR> ) 
-  { return t; } 
+Token opRel() : { Token t; } {
+  ( t=<IGUAL> | t=<DIF> | t=<MENORIG> | t=<MAIORIG> | t=<MENOR> | t=<MAIOR> )
+  { return t; }
 }
 
-Object aditiva() : { Object r, v; Token op; } { 
-  r=mult() ( 
-    LOOKAHEAD(1) 
-    ( op=<MAIS> v=mult() { 
+Object aditiva() : { Object r, v; Token op; } {
+  r=mult() (
+    LOOKAHEAD(1)
+    ( op=<MAIS> v=mult() {
         if (r instanceof String || v instanceof String) {
           r = String.valueOf(r) + String.valueOf(v);
         } else {
           r = toDouble(r) + toDouble(v);
         }
-      } 
-    | op=<MENOS> v=mult() { 
+      }
+    | op=<MENOS> v=mult() {
         r = toDouble(r) - toDouble(v);
-      } 
-    ) 
-  )* 
-  { return r; } 
+      }
+    )
+  )*
+  { return r; }
 }
 
-Object mult() : { Object r, v; Token op; } { 
-  r=unario() ( 
-    ( op=<MULT> v=unario() { r = toDouble(r) * toDouble(v); } 
-    | op=<DIV> v=unario() { r = toDouble(r) / toDouble(v); } 
-    | op=<MOD> v=unario() { r = toDouble(r) % toDouble(v); } ) 
-  )* 
-  { return r; } 
+Object mult() : { Object r, v; Token op; } {
+  r=unario() (
+    ( op=<MULT> v=unario() { r = toDouble(r) * toDouble(v); }
+    | op=<DIV> v=unario() { r = toDouble(r) / toDouble(v); }
+    | op=<MOD> v=unario() { r = toDouble(r) % toDouble(v); } )
+  )*
+  { return r; }
 }
 
-Object unario() : { Object r; } { 
-  <MENOS> r=unario() { return -toDouble(r); } 
-  | r=potencia() { return r; } 
+Object unario() : { Object r; } {
+  <MENOS> r=unario() { return -toDouble(r); }
+  | r=potencia() { return r; }
 }
 
-Object potencia() : { Object r, v = 0.0; boolean hasPot = false; } { 
-  r=fator() [ <POT> v=unario() { hasPot = true; } ] 
-  { return hasPot ? Math.pow(toDouble(r), toDouble(v)) : r; } 
+Object potencia() : { Object r, v = 0.0; boolean hasPot = false; } {
+  r=fator() [ <POT> v=unario() { hasPot = true; } ]
+  { return hasPot ? Math.pow(toDouble(r), toDouble(v)) : r; }
 }
 
-Object fator() : { Token t; String s; } { 
-  t=<NUM_INT> { return Double.parseDouble(t.image); } 
-| t=<NUM_FLOAT> { return Double.parseDouble(t.image); } 
-| t=<STRING_LIT> { 
+Object fator() : { Token t; String s; } {
+  t=<NUM_INT> { return Double.parseDouble(t.image); }
+| t=<NUM_FLOAT> { return Double.parseDouble(t.image); }
+| t=<STRING_LIT> {
     s = t.image;
-    return s.substring(1, s.length() - 1); 
+    return s.substring(1, s.length() - 1);
   }
-| <KW_TRUE> { return 1.0; } 
-| <KW_FALSE> { return 0.0; } 
-| <KW_NONE> { return 0.0; } 
-| t=<ID> { 
+| <KW_TRUE> { return 1.0; }
+| <KW_FALSE> { return 0.0; }
+| <KW_NONE> { return 0.0; }
+| t=<ID> {
     if (memoria.containsKey(t.image)) {
       return memoria.get(t.image);
     } else {
