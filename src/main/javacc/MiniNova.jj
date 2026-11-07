@@ -4,28 +4,86 @@ options {
 
 PARSER_BEGIN(MiniNova)
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
 
 public class MiniNova {
-  public static void main(String[] args) throws Exception {
-    if (args.length != 1) {
-      System.err.println("Uso: java MiniNova arquivo.mn");
-      System.exit(1);
+
+  // Variáveis globais para armazenamento (suporta INT, Float, String, Boolean)
+  public static Object resultado = 0.0;
+  public static Map<String, Object> memoria = new HashMap<String, Object>();
+  public static Scanner scanner = new Scanner(System.in);
+
+  // Auxiliares para conversão numérica segura
+  private static double toDouble(Object o) {
+    if (o instanceof Number) {
+      return ((Number) o).doubleValue();
     }
     try {
-      FileInputStream in = new FileInputStream(args[0]);
+      return Double.parseDouble(o.toString());
+    } catch (Exception e) {
+      return 0.0;
+    }
+  }
+
+  // Formata números inteiros sem o .0 para exibição limpa
+  private static String formatVal(Object val) {
+    if (val == null) return "none";
+    if (val instanceof Double) {
+      double d = (Double) val;
+      if (d == (long) d) {
+        return String.valueOf((long) d);
+      }
+    }
+    return val.toString();
+  }
+
+  public static void main(String[] args) throws Exception {
+    InputStream in = null;
+    String origem = "";
+
+    try {
+      if (args.length == 1) {
+        origem = "Arquivo: " + args[0];
+        in = new FileInputStream(args[0]);
+      } else {
+        origem = "Entrada Padrão (Console)";
+        in = System.in;
+      }
+
+      System.out.println("----------------------------------------");
+      System.out.println(" MiniNova - Compilador iniciado!");
+      System.out.println("Digite seu código e aperte Enter.");
+      System.out.println("Para sair, aperte Ctrl+Z (Windows) ou Ctrl+D (Linux/Mac) e Enter.");
+      System.out.println(" " + origem);
+      System.out.println("----------------------------------------");
+
       MiniNova parser = new MiniNova(in);
       parser.programa();
-      in.close();
-      System.out.println("OK: " + args[0] + " aceito.");
+
+      System.out.println("\n=> Sintaxe Correta!");
+      System.out.println("\n=> O resultado da expressao: " + formatVal(resultado));
+      System.out.println("\n");
+
+    } catch (FileNotFoundException e) {
+      System.out.println("\n[ERRO] Arquivo nao encontrado: " + (args.length > 0 ? args[0] : ""));
     } catch (ParseException e) {
-      System.out.println("ERRO SINTATICO: " + e.getMessage());
-      System.exit(2);
-    } catch (Throwable e) {
-      System.out.println("ERRO LEXICO: " + e.getMessage());
-      System.exit(3);
+      System.out.println("\n[ERRO] Erro de Sintaxe encontrado!");
+      System.out.println(e.getMessage());
+    } catch (TokenMgrError e) {
+      System.out.println("\n[ERRO] Erro Lexico (simbolo invalido) encontrado!");
+      System.out.println(e.getMessage());
+    } finally {
+      if (args.length == 1 && in != null) {
+        try { in.close(); } catch (Exception ignore) {}
+      }
     }
   }
 }
+
 PARSER_END(MiniNova)
 
 /* ---------- Descarte: espacos e comentarios (./ ate o fim da linha) ---------- */
@@ -34,14 +92,14 @@ SKIP : {
 | <COMENTARIO: "./" (~["\n", "\r"])*>
 }
 
-/* ---------- Palavras reservadas (antes de ID) ---------- */
+/* ---------- Palavras reservadas ---------- */
 TOKEN : {
   <KW_VAL: "val"> | <KW_FN: "fn"> | <KW_PRINT: "print"> | <KW_OUT: "out">
 | <KW_IF: "if"> | <KW_ELIF: "elif"> | <KW_ELSE: "else">
 | <KW_FOR: "for"> | <KW_WHILE: "while">
 | <KW_AND: "and"> | <KW_OR: "or">
 | <T_INT: "int"> | <T_FLOAT: "float"> | <T_STRING: "string"> | <T_BOOL: "bool">
-| <KW_TRUE: "true"> | <KW_FALSE: "false"> | <KW_NONE: "None">
+| <KW_TRUE: "true"> | <KW_FALSE: "false"> | <KW_NONE: "none">
 }
 
 /* ---------- Operadores e simbolos ---------- */
@@ -49,6 +107,7 @@ TOKEN : {
   <POT: "**"> | <MAIS: "+"> | <MENOS: "-"> | <MULT: "*"> | <DIV: "/"> | <MOD: "%">
 | <IGUAL: "=="> | <DIF: "!="> | <MENORIG: "<="> | <MAIORIG: ">="> | <MENOR: "<"> | <MAIOR: ">">
 | <ATRIB: "=">  | <PV: ";"> | <ACH: "{"> | <FCH: "}">
+| <VIRGULA: ",">
 }
 
 /* ---------- Literais e identificadores ---------- */
@@ -59,7 +118,8 @@ TOKEN : {
 | <ID: ["a"-"z", "A"-"Z", "_"] (["a"-"z", "A"-"Z", "0"-"9", "_"])*>
 }
 
-/* ---------- Gramatica ---------- */
+/* 2. ANALISADOR SINTÁTICO, SEMÂNTICO E AVALIADOR */
+
 void programa() : {} { ( declaracao() | funcao() )* <EOF> }
 
 void funcao() : {} { <KW_FN> <ID> [ listaParametros() ] bloco() }
@@ -79,22 +139,60 @@ void comando() : {} {
 | para()
 }
 
-/* Aceita tanto "val x int;" quanto "val x = int;" */
-void declaracao() : {} {
-  <KW_VAL> <ID> [ <ATRIB> ] tipo() [ <ATRIB> expressao() ] <PV>
+/* Flexível para aceitar: val int x; ou val x int; ou val x; */
+void declaracao() : { Token id; Object val = 0.0; } {
+  <KW_VAL> 
+  ( 
+    LOOKAHEAD(2) tipo() id=<ID> 
+  | 
+    id=<ID> [ tipo() ] 
+  )
+  [ <ATRIB> val=expressao() { memoria.put(id.image, val); resultado = val; } ]
+  <PV>
 }
 
 void tipo() : {} { <T_INT> | <T_FLOAT> | <T_STRING> | <T_BOOL> }
 
 void atribuicao() : {} { atribSemPV() <PV> }
-void atribSemPV() : {} { <ID> <ATRIB> expressao() }
+
+void atribSemPV() : { Token id; Object val; } { 
+  id=<ID> <ATRIB> val=expressao() { 
+    memoria.put(id.image, val); 
+    resultado = val; 
+  } 
+}
 
 void chamada() : {} { <ID> [ listaArgumentos() ] <PV> }
 void listaArgumentos() : {} { expressao() ( expressao() )* }
 
-void leitura() : {} { <KW_OUT> <ID> <PV> }
+/* Lê do console (Scanner) e atribui à variável */
+void leitura() : { Token id; } { 
+  <KW_OUT> id=<ID> <PV> {
+    if (scanner.hasNextDouble()) {
+      double d = scanner.nextDouble();
+      memoria.put(id.image, d);
+      resultado = d;
+    } else {
+      String s = scanner.next();
+      memoria.put(id.image, s);
+      resultado = s;
+    }
+  } 
+}
 
-void escrita() : {} { <KW_PRINT> expressao() ( expressao() )* <PV> }
+/* Imprime múltiplos valores separados por vírgula, com espaço automático */
+void escrita() : { Object val; StringBuilder sb = new StringBuilder(); } { 
+  <KW_PRINT> val=expressao() { 
+    sb.append(formatVal(val)); 
+    resultado = val; 
+  } 
+  ( <VIRGULA> val=expressao() { 
+    sb.append(" ").append(formatVal(val)); 
+    resultado = val; 
+  } )* 
+  { System.out.println(sb.toString()); }
+  <PV> 
+}
 
 void condicional() : {} {
   <KW_IF> expressao() bloco()
@@ -108,19 +206,98 @@ void para() : {} {
   <KW_FOR> <ID> expressao() bloco()
 }
 
-/* ---------- Expressoes ---------- */
-void expressao() : {} { ou() }
-void ou() : {} { e() ( <KW_OR> e() )* }
-void e() : {} { relacional() ( <KW_AND> relacional() )* }
-void relacional() : {} { aditiva() [ opRel() aditiva() ] }
-void opRel() : {} { <IGUAL> | <DIF> | <MENORIG> | <MAIORIG> | <MENOR> | <MAIOR> }
-void aditiva() : {} { mult() ( ( <MAIS> | <MENOS> ) mult() )* }
-void mult() : {} { unario() ( ( <MULT> | <DIV> | <MOD> ) unario() )* }
-void unario() : {} { <MENOS> unario() | potencia() }
-void potencia() : {} { fator() [ <POT> unario() ] }
-void fator() : {} {
-  <NUM_INT> | <NUM_FLOAT> | <STRING_LIT>
-| <KW_TRUE> | <KW_FALSE> | <KW_NONE>
-| <ID>
-| "(" expressao() ")"
+/* ---------- Expressoes com Retorno de Object (Suporte a String e Número) ---------- */
+Object expressao() : { Object r; } { r=ou() { return r; } }
+
+Object ou() : { Object r, v; } { 
+  r=e() ( LOOKAHEAD(2) <KW_OR> v=e() { 
+    boolean b1 = toDouble(r) != 0; 
+    boolean b2 = toDouble(v) != 0; 
+    r = (b1 || b2 ? 1.0 : 0.0); 
+  } )* 
+  { return r; } 
+}
+
+Object e() : { Object r, v; } { 
+  r=relacional() ( LOOKAHEAD(2) <KW_AND> v=relacional() { 
+    boolean b1 = toDouble(r) != 0; 
+    boolean b2 = toDouble(v) != 0; 
+    r = (b1 && b2 ? 1.0 : 0.0); 
+  } )* 
+  { return r; } 
+}
+
+Object relacional() : { Object r, v = 0.0; Token op = null; } { 
+  r=aditiva() [ op=opRel() v=aditiva() { 
+    double d1 = toDouble(r);
+    double d2 = toDouble(v);
+    if (op.image.equals("==")) r = (d1 == d2 ? 1.0 : 0.0);
+    else if (op.image.equals("!=")) r = (d1 != d2 ? 1.0 : 0.0);
+    else if (op.image.equals("<")) r = (d1 < d2 ? 1.0 : 0.0);
+    else if (op.image.equals("<=")) r = (d1 <= d2 ? 1.0 : 0.0);
+    else if (op.image.equals(">")) r = (d1 > d2 ? 1.0 : 0.0);
+    else if (op.image.equals(">=")) r = (d1 >= d2 ? 1.0 : 0.0);
+  } ] 
+  { return r; } 
+}
+
+Token opRel() : { Token t; } { 
+  ( t=<IGUAL> | t=<DIF> | t=<MENORIG> | t=<MAIORIG> | t=<MENOR> | t=<MAIOR> ) 
+  { return t; } 
+}
+
+Object aditiva() : { Object r, v; Token op; } { 
+  r=mult() ( 
+    LOOKAHEAD(1) 
+    ( op=<MAIS> v=mult() { 
+        if (r instanceof String || v instanceof String) {
+          r = String.valueOf(r) + String.valueOf(v);
+        } else {
+          r = toDouble(r) + toDouble(v);
+        }
+      } 
+    | op=<MENOS> v=mult() { 
+        r = toDouble(r) - toDouble(v);
+      } 
+    ) 
+  )* 
+  { return r; } 
+}
+
+Object mult() : { Object r, v; Token op; } { 
+  r=unario() ( 
+    ( op=<MULT> v=unario() { r = toDouble(r) * toDouble(v); } 
+    | op=<DIV> v=unario() { r = toDouble(r) / toDouble(v); } 
+    | op=<MOD> v=unario() { r = toDouble(r) % toDouble(v); } ) 
+  )* 
+  { return r; } 
+}
+
+Object unario() : { Object r; } { 
+  <MENOS> r=unario() { return -toDouble(r); } 
+  | r=potencia() { return r; } 
+}
+
+Object potencia() : { Object r, v = 0.0; boolean hasPot = false; } { 
+  r=fator() [ <POT> v=unario() { hasPot = true; } ] 
+  { return hasPot ? Math.pow(toDouble(r), toDouble(v)) : r; } 
+}
+
+Object fator() : { Token t; String s; } { 
+  t=<NUM_INT> { return Double.parseDouble(t.image); } 
+| t=<NUM_FLOAT> { return Double.parseDouble(t.image); } 
+| t=<STRING_LIT> { 
+    s = t.image;
+    return s.substring(1, s.length() - 1); 
+  }
+| <KW_TRUE> { return 1.0; } 
+| <KW_FALSE> { return 0.0; } 
+| <KW_NONE> { return 0.0; } 
+| t=<ID> { 
+    if (memoria.containsKey(t.image)) {
+      return memoria.get(t.image);
+    } else {
+      return 0.0;
+    }
+  }
 }
