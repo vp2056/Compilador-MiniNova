@@ -93,7 +93,7 @@ fator          ::= NUM_INT | NUM_FLOAT | STRING_LIT | "true" | "false" | "none" 
    mvn exec:java -Dexec.mainClass="MiniNova" -Dexec.args="caminho/para/arquivo.mn"
    ```
    
-4. **Executar o script Linux e Windows**
+4. **Executar o script Linux e Windows** 
    ```
    ./linux.sh src/exemplos/validos/calc.mn
    ```
