@@ -16,13 +16,13 @@ fn calculadora {
        if opcao == "+" {
           soma = x + y;
        }
-       elif opcao == "-" {
+       if opcao == "-" {
           soma = x - y;
        }
-       elif opcao == "*" {
+       if opcao == "*" {
           soma = x * y;
        }
-       elif opcao == "/" {
+       if opcao == "/" {
             if y != 0 {
                soma = x / y;
             } else {
