@@ -98,7 +98,7 @@ fator          ::= NUM_INT | NUM_FLOAT | STRING_LIT | "true" | "false" | "none" 
    ./linux.sh src/exemplos/validos/calc.mn
    ```
     ```
-   ./windows.sh src/exemplos/validos/calc.mn
+   ./windows.bat src/exemplos/validos/calc.mn
    ```
 ---
 
