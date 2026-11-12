@@ -6,21 +6,19 @@ PARSER_BEGIN(MiniNova)
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
 public class MiniNova {
 
-  // Variáveis globais para armazenamento (suporta INT, String, Boolean)
   public static Object resultado = 0.0;
   public static Map<String, Object> memoria = new HashMap<String, Object>();
   public static Scanner scanner = new Scanner(System.in);
-
-  // Flag de controle para condicionais (evita executar blocos falsos)
   public static boolean executing = true;
 
-  // Auxiliares para conversão numérica segura
   private static double toDouble(Object o) {
     if (o instanceof Number) {
       return ((Number) o).doubleValue();
@@ -32,7 +30,6 @@ public class MiniNova {
     }
   }
 
-  // Formata números inteiros sem o .0 para exibição limpa
   private static String formatVal(Object val) {
     if (val == null) return "none";
     if (val instanceof Double) {
@@ -89,31 +86,27 @@ public class MiniNova {
 
 PARSER_END(MiniNova)
 
-/* ---------- Descarte: espacos e comentarios (./ ate o fim da linha) ---------- */
 SKIP : {
   " " | "\t" | "\r" | "\n"
 | <COMENTARIO: "./" (~["\n", "\r"])*>
 }
 
-/* ---------- Palavras reservadas ---------- */
 TOKEN : {
-  <KW_VAL: "val"> | <KW_FN: "fn"> | <KW_PRINT: "print"> | <KW_OUT: "out">
+  <KW_VAL: "val">  | <KW_PRINT: "print"> | <KW_OUT: "out">
 | <KW_IF: "if"> | <KW_ELIF: "elif"> | <KW_ELSE: "else">
-| <KW_FOR: "for"> | <KW_WHILE: "while">
+| <KW_FOR: "for"> 
 | <KW_AND: "and"> | <KW_OR: "or">
 | <T_INT: "int"> | <T_FLOAT: "float"> | <T_STRING: "string"> | <T_BOOL: "bool">
 | <KW_TRUE: "true"> | <KW_FALSE: "false"> | <KW_NONE: "none">
 }
 
-/* ---------- Operadores e simbolos ---------- */
 TOKEN : {
   <POT: "**"> | <MAIS: "+"> | <MENOS: "-"> | <MULT: "*"> | <DIV: "/"> | <MOD: "%">
 | <IGUAL: "=="> | <DIF: "!="> | <MENORIG: "<="> | <MAIORIG: ">="> | <MENOR: "<"> | <MAIOR: ">">
 | <ATRIB: "=">  | <PV: ";"> | <ACH: "{"> | <FCH: "}">
-| <VIRGULA: ",">
+| <APAR: "("> | <FPAR: ")"> | <VIRGULA: ",">
 }
 
-/* ---------- Literais e identificadores ---------- */
 TOKEN : {
   <NUM_INT: (["0"-"9"])+>
 | <NUM_FLOAT: (["0"-"9"])+ "." (["0"-"9"])+>
@@ -121,13 +114,10 @@ TOKEN : {
 | <ID: ["a"-"z", "A"-"Z", "_"] (["a"-"z", "A"-"Z", "0"-"9", "_"])*>
 }
 
-/* 2. ANALISADOR SINTÁTICO, SEMÂNTICO E AVALIADOR */
-
-void programa() : {} { ( declaracao() | funcao() )* <EOF> }
-
-void funcao() : {} { <KW_FN> <ID> [ listaParametros() ] bloco() }
-
-void listaParametros() : {} { <ID> ( <ID> )* }
+void programa() : {} {
+  ( comando() )*
+  <EOF>
+}
 
 void bloco() : {} { <ACH> ( comando() )* <FCH> }
 
@@ -138,11 +128,9 @@ void comando() : {} {
 | leitura()
 | escrita()
 | condicional()
-| enquanto()
 | para()
 }
 
-/* Flexível para aceitar: val int x; ou val x int; ou val x; */
 void declaracao() : { Token id; Object val = 0.0; } {
   <KW_VAL>
   (
@@ -176,7 +164,6 @@ void atribSemPV() : { Token id; Object val; } {
 void chamada() : {} { <ID> [ listaArgumentos() ] <PV> }
 void listaArgumentos() : {} { expressao() ( expressao() )* }
 
-/* Lê do console (Scanner) e atribui à variável */
 void leitura() : { Token id; } {
   <KW_OUT> id=<ID> <PV> {
     if (executing) {
@@ -193,7 +180,6 @@ void leitura() : { Token id; } {
   }
 }
 
-/* Imprime múltiplos valores separados por vírgula, com espaço automático */
 void escrita() : { Object val; StringBuilder sb = new StringBuilder(); } {
   <KW_PRINT> val=expressao() {
     if (executing) {
@@ -251,13 +237,118 @@ void condicional() : {
   }
 }
 
-void enquanto() : {} { <KW_WHILE> expressao() bloco() }
+void blocoInterno() : {} { ( comando() )* }
 
-void para() : {} {
-  <KW_FOR> <ID> expressao() bloco()
+void para() : {
+  Token id;
+  Object limite;
+  boolean parentExec = executing;
+  StringBuilder blockCode = new StringBuilder();
+  Token t;
+  int depth = 0;
+} {
+  <KW_FOR> id=<ID> limite=expressao()
+  <ACH> {
+    depth = 1;
+  }
+  (
+    LOOKAHEAD(2)
+    (
+      t = <ACH> { depth++; blockCode.append(" {").append(" "); }
+    |
+      t = <FCH> { depth--; if (depth > 0) blockCode.append(" }").append(" "); }
+    |
+      t = <KW_VAL> { blockCode.append("val").append(" "); }
+    |
+      t = <KW_PRINT> { blockCode.append("print").append(" "); }
+    |
+      t = <KW_OUT> { blockCode.append("out").append(" "); }
+    |
+      t = <KW_IF> { blockCode.append("if").append(" "); }
+    |
+      t = <KW_ELIF> { blockCode.append("elif").append(" "); }
+    |
+      t = <KW_ELSE> { blockCode.append("else").append(" "); }
+    |
+      t = <KW_FOR> { blockCode.append("for").append(" "); }
+    |
+      t = <KW_AND> { blockCode.append("and").append(" "); }
+    |
+      t = <KW_OR> { blockCode.append("or").append(" "); }
+    |
+      t = <T_INT> { blockCode.append("int").append(" "); }
+    |
+      t = <T_FLOAT> { blockCode.append("float").append(" "); }
+    |
+      t = <T_STRING> { blockCode.append("string").append(" "); }
+    |
+      t = <T_BOOL> { blockCode.append("bool").append(" "); }
+    |
+      t = <KW_TRUE> { blockCode.append("true").append(" "); }
+    |
+      t = <KW_FALSE> { blockCode.append("false").append(" "); }
+    |
+      t = <KW_NONE> { blockCode.append("none").append(" "); }
+    |
+      t = <POT> { blockCode.append("**").append(" "); }
+    |
+      t = <MAIS> { blockCode.append("+").append(" "); }
+    |
+      t = <MENOS> { blockCode.append("-").append(" "); }
+    |
+      t = <MULT> { blockCode.append("*").append(" "); }
+    |
+      t = <DIV> { blockCode.append("/").append(" "); }
+    |
+      t = <MOD> { blockCode.append("%").append(" "); }
+    |
+      t = <IGUAL> { blockCode.append("==").append(" "); }
+    |
+      t = <DIF> { blockCode.append("!=").append(" "); }
+    |
+      t = <MENORIG> { blockCode.append("<=").append(" "); }
+    |
+      t = <MAIORIG> { blockCode.append(">=").append(" "); }
+    |
+      t = <MENOR> { blockCode.append("<").append(" "); }
+    |
+      t = <MAIOR> { blockCode.append(">").append(" "); }
+    |
+      t = <ATRIB> { blockCode.append("=").append(" "); }
+    |
+      t = <PV> { blockCode.append(";").append(" "); }
+    |
+      t = <VIRGULA> { blockCode.append(",").append(" "); }
+    |
+      t = <APAR> { blockCode.append("(").append(" "); }
+    |
+      t = <FPAR> { blockCode.append(")").append(" "); }
+    |
+      t = <NUM_INT> { blockCode.append(t.image).append(" "); }
+    |
+      t = <NUM_FLOAT> { blockCode.append(t.image).append(" "); }
+    |
+      t = <STRING_LIT> { blockCode.append(t.image).append(" "); }
+    |
+      t = <ID> { blockCode.append(t.image).append(" "); }
+    )
+  )* {
+    if (executing) {
+      double maxVal = toDouble(limite);
+      for (double i = 0; i < maxVal; i++) {
+        memoria.put(id.image, i);
+        try {
+          MiniNova subParser = new MiniNova(new ByteArrayInputStream(blockCode.toString().getBytes(StandardCharsets.UTF_8)));
+          subParser.blocoInterno();
+        } catch (Exception e) {
+          break;
+        }
+      }
+    }
+    executing = parentExec;
+  }
 }
 
-/* ---------- Expressoes com Retorno de Object (Suporte a String e Número) ---------- */
 Object expressao() : { Object r; } { r=ou() { return r; } }
 
 Object ou() : { Object r, v; } {
@@ -326,8 +417,24 @@ Object aditiva() : { Object r, v; Token op; } {
 Object mult() : { Object r, v; Token op; } {
   r=unario() (
     ( op=<MULT> v=unario() { r = toDouble(r) * toDouble(v); }
-    | op=<DIV> v=unario() { r = toDouble(r) / toDouble(v); }
-    | op=<MOD> v=unario() { r = toDouble(r) % toDouble(v); } )
+    | op=<DIV> v=unario() { 
+        double d = toDouble(v);
+        if (d == 0.0) {
+          r = 0.0;
+        } else {
+          r = toDouble(r) / d; 
+        }
+      }
+    | op=<MOD> v=unario() { 
+        double d = toDouble(v);
+        if (d == 0.0) {
+          System.out.println("\n[ERRO] Modulo por zero!");
+          r = 0.0;
+        } else {
+          r = toDouble(r) % d; 
+        }
+      } 
+    )
   )*
   { return r; }
 }
@@ -342,7 +449,7 @@ Object potencia() : { Object r, v = 0.0; boolean hasPot = false; } {
   { return hasPot ? Math.pow(toDouble(r), toDouble(v)) : r; }
 }
 
-Object fator() : { Token t; String s; } {
+Object fator() : { Token t; String s; Object r; } {
   t=<NUM_INT> { return Double.parseDouble(t.image); }
 | t=<NUM_FLOAT> { return Double.parseDouble(t.image); }
 | t=<STRING_LIT> {
@@ -352,6 +459,7 @@ Object fator() : { Token t; String s; } {
 | <KW_TRUE> { return 1.0; }
 | <KW_FALSE> { return 0.0; }
 | <KW_NONE> { return 0.0; }
+| <APAR> r=expressao() <FPAR> { return r; }
 | t=<ID> {
     if (memoria.containsKey(t.image)) {
       return memoria.get(t.image);
