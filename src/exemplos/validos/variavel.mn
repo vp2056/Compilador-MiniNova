@@ -1,0 +1,10 @@
+val int a = 10;
+val float b = 5.5;
+val string nome = "victor";
+val bool ativo = true;
+
+print a;
+print b;
+print nome;
+print ativo;
+

@@ -1,0 +1,18 @@
+./ Programa simple de Tabuada com FOR
+val int n;
+val int i;
+val int soma = 0;
+
+
+print "Digite numero";
+out n;
+
+for i 10 {
+soma = n * i;
+print n, "x", i, "=", soma;
+}
+
+
+
+
+
