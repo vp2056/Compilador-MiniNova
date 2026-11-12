@@ -1,34 +1,30 @@
-./ Programa de Calculadora Simples Corrigido
+val int x;
+val int y;
+val int soma = 0;
+val string opcao;
 
-fn calculadora {
-       val int x;
-       val int y;
-       val string opcao;
-       val int soma = 0;
+print "Digite primeiro numero";
+out x;
+print "Digite segundo numero";
+out y;
+print "Digite + - * /";
+out opcao;
 
-       print "Digite o x";
-       out x;
-       print "Digite o y ";
-       out y;
-       print "Digite + - * / ";
-       out opcao;
-
-       if opcao == "+" {
-          soma = x + y;
-       }
-       if opcao == "-" {
-          soma = x - y;
-       }
-       if opcao == "*" {
-          soma = x * y;
-       }
-       if opcao == "/" {
-            if y != 0 {
-               soma = x / y;
-            } else {
-               print "Erro divisao por zero";
-            }
-       }
-
-       print "A soma é", soma;
+if opcao == "+" {
+    soma = x + y;
 }
+elif opcao == "-" {
+    soma = x - y;
+}
+elif opcao == "*" {
+    soma = x * y;
+}
+elif opcao == "/" {
+    if y != 0 {
+        soma = x / y;
+    } else {
+        print "Erro: divisao por zero";
+    }
+}
+
+print "O resultado e", soma;
