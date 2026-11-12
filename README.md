@@ -37,31 +37,28 @@ O **MiniNova** é uma linguagem imperativa estruturada com tipagem declarada e u
 ## 3. Especificação Formal da Gramática (EBNF)
 
 ```ebnf
-programa       ::= ( comando )* <EOF>
-bloco          ::= "{" ( comando )* "}"
-
-comando        ::= declaracao | atribuicao | chamada | leitura | escrita | condicional | para
-
-declaracao     ::= "val" ( tipo ID | ID [ tipo ] ) [ "=" expressao ] ";"
-tipo           ::= "int" | "float" | "string" | "bool"
-atribuicao     ::= ID "=" expressao ";"
-chamada        ::= ID [ listaArgumentos ] ";"
-listaArgumentos::= expressao ( expressao )*
-leitura        ::= "out" ID ";"
-escrita        ::= "print" expressao ( "," expressao )* ";"
-condicional    ::= "if" expressao bloco ( "elif" expressao bloco )* [ "else" bloco ]
-para           ::= "for" ID expressao "{" ( comando )* "}"
-
-expressao      ::= ou
-ou             ::= e ( "or" e )*
-e              ::= relacional ( "and" relacional )*
-relacional     ::= aditiva [ opRel aditiva ]
-opRel          ::= "==" | "!=" | "<=" | ">=" | "<" | ">"
-aditiva        ::= mult ( ( "+" | "-" ) mult )*
-mult           ::= unario ( ( "*" | "/" | "%" ) unario )*
-unario         ::= "-" unario | potencia
-potencia       ::= fator [ "**" unario ]
-fator          ::= NUM_INT | NUM_FLOAT | STRING_LIT | "true" | "false" | "none" | ID | "(" expressao ")"
+programa     ::= ( comando )* <EOF>
+bloco        ::= "{" ( comando )* "}"
+comando      ::= declaracao | atribuicao | chamada | leitura | escrita | condicional | para
+declaracao   ::= "val" ( tipo ID | ID [ tipo ] ) [ "=" expressao ] ";"
+tipo         ::= "int" | "float" | "string" | "bool"
+atribuicao   ::= ID "=" expressao ";"
+chamada      ::= ID [ listaArgumentos ] ";"
+listaArgumentos ::= expressao ( expressao )*
+leitura      ::= "out" ID ";"
+escrita      ::= "print" expressao ( "," expressao )* ";"
+condicional  ::= "if" expressao bloco ( "elif" expressao bloco )* ( "else" bloco )?
+para         ::= "for" ID expressao bloco
+expressao    ::= ou
+ou           ::= e ( "or" e )*
+e            ::= relacional ( "and" relacional )*
+relacional   ::= aditiva [ opRel aditiva ]
+opRel        ::= "==" | "!=" | "<" | "<=" | ">" | ">="
+aditiva      ::= mult ( ( "+" | "-" ) mult )*
+mult         ::= unario ( ( "*" | "/" | "%" ) unario )*
+unario       ::= "-" unario | potencia
+potencia     ::= fator ( "**" unario )?
+fator        ::= NUM_INT | NUM_FLOAT | STRING_LIT | "true" | "false" | "none" | "(" expressao ")" | ID
 ```
 
 ---
