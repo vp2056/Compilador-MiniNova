@@ -1,5 +1,0 @@
-fn test4 {
-  x > 5 {
-  print x;
-}
-}

@@ -1,8 +1,0 @@
-./ Este e um comentario de linha
-fn teste4 {
-val cont = 3;
-while cont > 0 {
-  print cont;
-  cont = cont - 1;
-}
-}

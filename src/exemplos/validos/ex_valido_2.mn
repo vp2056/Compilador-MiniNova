@@ -1,6 +1,0 @@
-./ Este e um comentario de linha
-fn teste2 {
-val y = 20;
-y = y + 5 * 2;
-print y;
-}
