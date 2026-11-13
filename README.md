@@ -104,8 +104,8 @@ O repositório contém diretórios dedicados com exemplos de código:
 
 ## 6. Matriz de Responsabilidade
 
-| Integrante | Módulos e Responsabilidades Desenvolvidas |
-|---|---|
-| **Victor Pedro** | Especificação léxica (`SKIP`, `TOKEN`), tratamento de identificadores, literais e comentários `./`. |
+| Integrante       | Módulos e Responsabilidades Desenvolvidas                                                                 |
+|------------------|-----------------------------------------------------------------------------------------------------------|
+| **Victor Pedro** | Especificação léxica (`SKIP`, `TOKEN`), tratamento de identificadores, literais e comentários `./`.       |
 |                  | Implementação das regras sintáticas de expressões aritméticas, relacionais, lógicas e precedência (`**`). |
-|                  | Estruturas de controle de fluxo (`if/elif/else`, `for`) e rotinas de E/S (`print`/`out`). |
+|                  | Estruturas de controle de fluxo (`if/elif/else`, `for`) e rotinas de E/S (`print`/`out`).                 |
