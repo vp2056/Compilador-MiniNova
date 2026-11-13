@@ -66,7 +66,7 @@ fator        ::= NUM_INT | NUM_FLOAT | STRING_LIT | "true" | "false" | "none" | 
 ## 4. Instruções de Compilação e Execução
 
 ### Pré-requisitos
-* Java JDK 8 ou superior instalado.
+* Java JDK 21 ou superior instalado (conforme `maven.compiler.source/target` do `pom.xml`).
 * Maven instalado e configurado no PATH.
 
 ### Comandos Maven
@@ -107,5 +107,5 @@ O repositório contém diretórios dedicados com exemplos de código:
 | Integrante | Módulos e Responsabilidades Desenvolvidas |
 |---|---|
 | **Victor Pedro** | Especificação léxica (`SKIP`, `TOKEN`), tratamento de identificadores, literais e comentários `./`. |
-| **Victor Pedro** | Implementação das regras sintáticas de expressões aritméticas, relacionais, lógicas e precedência (`**`). |
-| **Victor Pedro** | Estruturas de controle de fluxo (`if/elif/else`, `for`) e rotinas de E/S (`print`/`out`). |
+|                  | Implementação das regras sintáticas de expressões aritméticas, relacionais, lógicas e precedência (`**`). |
+|                  | Estruturas de controle de fluxo (`if/elif/else`, `for`) e rotinas de E/S (`print`/`out`). |
