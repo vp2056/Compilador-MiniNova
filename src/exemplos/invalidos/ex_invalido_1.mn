@@ -1,2 +1,2 @@
- int calc = (10 + 5 * 2);
+ int calc = 10;
 print calc;
