@@ -41,6 +41,11 @@ public class MiniNova {
     return val.toString();
   }
 
+  private static String toStr(Object o) {
+    if (o == null) return "none";
+    return String.valueOf(o);
+  }
+
   public static void main(String[] args) throws Exception {
     InputStream in = null;
     String origem = "";
@@ -250,7 +255,7 @@ void para() : {
     depth = 1;
   }
   (
-    LOOKAHEAD(2)
+    LOOKAHEAD({ depth > 0 })
     (
       t = <ACH> { depth++; blockCode.append(" {").append(" "); }
     |
@@ -370,8 +375,8 @@ Object e() : { Object r, v; } {
 Object relacional() : { Object r, v = 0.0; Token op = null; } {
   r=aditiva() [ op=opRel() v=aditiva() {
     if (r instanceof String || v instanceof String) {
-      String s1 = String.valueOf(r);
-      String s2 = String.valueOf(v);
+      String s1 = toStr(r);
+      String s2 = toStr(v);
       if (op.image.equals("==")) r = (s1.equals(s2) ? 1.0 : 0.0);
       else if (op.image.equals("!=")) r = (!s1.equals(s2) ? 1.0 : 0.0);
       else r = 0.0;
@@ -399,7 +404,7 @@ Object aditiva() : { Object r, v; Token op; } {
     LOOKAHEAD(1)
     ( op=<MAIS> v=mult() {
         if (r instanceof String || v instanceof String) {
-          r = String.valueOf(r) + String.valueOf(v);
+          r = toStr(r) + toStr(v);
         } else {
           r = toDouble(r) + toDouble(v);
         }
@@ -456,7 +461,7 @@ Object fator() : { Token t; String s; Object r; } {
   }
 | <KW_TRUE> { return 1.0; }
 | <KW_FALSE> { return 0.0; }
-| <KW_NONE> { return 0.0; }
+| <KW_NONE> { return null; }
 | <APAR> r=expressao() <FPAR> { return r; }
 | t=<ID> {
     if (memoria.containsKey(t.image)) {
