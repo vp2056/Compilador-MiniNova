@@ -89,11 +89,13 @@ public class MiniNova {
 
 PARSER_END(MiniNova)
 
+/* ---------- Descarte: espaços e comentários (./ até o fim da linha) ---------- */
 SKIP : {
   " " | "\t" | "\r" | "\n"
 | <COMENTARIO: "./" (~["\n", "\r"])*>
 }
 
+/* ---------- Palavras reservadas ---------- */
 TOKEN : {
   <KW_VAL: "val">  | <KW_PRINT: "print"> | <KW_OUT: "out">
 | <KW_IF: "if"> | <KW_ELIF: "elif"> | <KW_ELSE: "else">
@@ -103,6 +105,7 @@ TOKEN : {
 | <KW_TRUE: "true"> | <KW_FALSE: "false"> | <KW_NONE: "none">
 }
 
+/* ---------- Operadores e símbolos ---------- */
 TOKEN : {
   <POT: "**"> | <MAIS: "+"> | <MENOS: "-"> | <MULT: "*"> | <DIV: "/"> | <MOD: "%">
 | <IGUAL: "=="> | <DIF: "!="> | <MENORIG: "<="> | <MAIORIG: ">="> | <MENOR: "<"> | <MAIOR: ">">
@@ -110,12 +113,15 @@ TOKEN : {
 | <APAR: "("> | <FPAR: ")"> | <VIRGULA: ",">
 }
 
+/* ---------- Literais e identificadores ---------- */
 TOKEN : {
   <NUM_INT: (["0"-"9"])+>
 | <NUM_FLOAT: (["0"-"9"])+ "." (["0"-"9"])+>
 | <STRING_LIT: "\"" (~["\"", "\n", "\r"])* "\"">
 | <ID: ["a"-"z", "A"-"Z", "_"] (["a"-"z", "A"-"Z", "0"-"9", "_"])*>
 }
+
+/* 2. ANALISADOR SINTÁTICO, SEMÂNTICO E AVALIADOR */
 
 void programa() : {} {
   ( comando() )*
@@ -352,6 +358,7 @@ void para() : {
   }
 }
 
+/* ---------- Expressões com Retorno de Object (Suporte a String e Número) ---------- */
 Object expressao() : { Object r; } { r=ou() { return r; } }
 
 Object ou() : { Object r, v; } {
